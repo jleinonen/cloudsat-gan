@@ -1,0 +1,159 @@
+import sys
+import numpy as np
+import models
+from keras.optimizers import Adam
+from matplotlib import cm, colors, pyplot as plt
+plt.switch_backend("agg")
+# Utils
+sys.path.append("../utils")
+import data_utils
+import general_utils
+
+vir_white = colors.ListedColormap([[1.,1.,1.]]+cm.viridis.colors)
+
+def eval(**kwargs):
+
+    # Roll out the parameters
+    batch_size = kwargs["batch_size"]
+    generator = kwargs["generator"]
+    model_name = kwargs["model_name"]
+    image_data_format = kwargs["image_data_format"]
+    img_dim = kwargs["img_dim"]
+    cont_dim = (kwargs["cont_dim"],)
+    cat_dim = (kwargs["cat_dim"],)
+    noise_dim = (kwargs["noise_dim"],)
+    bn_mode = kwargs["bn_mode"]
+    noise_scale = kwargs["noise_scale"]
+    scenes_fn = kwargs["scenes_fn"]
+    dset = kwargs["dset"]
+    epoch = kwargs["epoch"]
+
+    # Setup environment (logging directory etc)
+    general_utils.setup_logging(model_name)
+
+    # Load and rescale data
+    # X_real_train = data_utils.load_cloudsat_scenes(scenes_fn, image_data_format)
+    img_dim = (64, 64, 1) #X_real_train.shape[-3:]
+
+    # Load generator model
+    gen = models.generator_upsampling(
+            cat_dim, cont_dim, noise_dim, img_dim)
+
+    gen.load_weights("../../models/%s/gen_weights_epoch%s.h5" %
+                                 (model_name, epoch))
+
+    X_plot = []
+    # Vary the categorical variable
+    for i in range(cont_dim[0]):
+        # Vary the noise variable
+        X_row = []
+        for (j,cont) in enumerate(np.linspace(-2,2,15)):
+            X_noise = data_utils.sample_noise(noise_scale, 1, noise_dim)#[0,:]
+            #X_noise[:] *= 0.5
+            X_cont = np.zeros((1,cont_dim[0]), dtype='float32')            
+            X_cont[:, i] = cont
+            X_cat = np.ones((1, cat_dim[0]), dtype='float32')            
+            #X_cat[:, i] = 1  # always the same categorical value
+
+            X_gen = gen.predict([X_cat, X_cont, X_noise])
+            #X_gen = generator_model.predict([X_cat, X_noise])
+            X_gen = data_utils.inverse_normalization(X_gen)
+            if image_data_format == "channels_first":
+                X_gen = X_gen.transpose(0,2,3,1)
+            X_gen = X_gen[0,:,:,0]
+            X_row.append(X_gen)
+        X_plot.append(np.hstack(X_row))        
+
+    X_plot = np.vstack(X_plot)
+
+    plt.figure(figsize=(16,12))
+    if X_plot.shape[-1] == 1:
+        plt.imshow(X_plot[:, :, 0], cmap=vir_white, interpolation='nearest',
+            norm=colors.Normalize(vmin=0, vmax=1))
+    else:
+        plt.imshow(X_plot, cmap=vir_white, interpolation='nearest',
+            norm=colors.Normalize(vmin=0, vmax=1))
+    plt.xticks([])
+    plt.yticks([])
+
+    """
+    plt.ylabel("Varying categorical factor", fontsize=28, labelpad=60)
+
+    plt.annotate('', xy=(-0.05, 0), xycoords='axes fraction', xytext=(-0.05, 1),
+                 arrowprops=dict(arrowstyle="-|>", color='k', linewidth=4))
+    plt.tight_layout()
+    """
+    plt.savefig("../../figures/varying_categorical.png", bbox_inches='tight')
+    plt.clf()
+    plt.close()
+
+    """
+    # Vary the continuous variables
+    X_plot = []
+    # First get the extent of the noise sampling
+    x = np.ravel(data_utils.sample_noise(noise_scale, batch_size * 20000, cont_dim))
+    # Define interpolation points
+    x = np.linspace(x.min(), x.max(), num=batch_size)
+    for i in range(batch_size):
+        X_noise = data_utils.sample_noise(noise_scale, batch_size, noise_dim)
+        X_cont = np.concatenate([np.array([x[i], x[j]]).reshape(1, -1) for j in range(batch_size)], axis=0)
+        X_cat = np.zeros((batch_size, cat_dim[0]), dtype='float32')
+        X_cat[:, 1] = 1  # always the same categorical value
+
+        X_gen = generator_model.predict([X_cat, X_cont, X_noise])
+        X_gen = data_utils.inverse_normalization(X_gen)
+        if image_data_format == "channels_first":
+            X_gen = X_gen.transpose(0,2,3,1)
+        X_gen = [X_gen[i] for i in range(len(X_gen))]
+        X_plot.append(np.concatenate(X_gen, axis=1))
+    X_plot = np.concatenate(X_plot, axis=0)
+
+    plt.figure(figsize=(10,10))
+    if X_plot.shape[-1] == 1:
+        plt.imshow(X_plot[:, :, 0], cmap="hot_r", interpolation='nearest',
+            norm=colors.Normalize(vmin=0, vmax=1))
+    else:
+        plt.imshow(X_plot, cmap="hot_r", interpolation='nearest',
+            norm=colors.Normalize(vmin=0, vmax=1))
+    plt.xticks([])
+    plt.yticks([])
+    plt.ylabel("Varying continuous factor 1", fontsize=28, labelpad=60)
+    plt.annotate('', xy=(-0.05, 0), xycoords='axes fraction', xytext=(-0.05, 1),
+                 arrowprops=dict(arrowstyle="-|>", color='k', linewidth=4))
+    plt.xlabel("Varying continuous factor 2", fontsize=28, labelpad=60)
+    plt.annotate('', xy=(1, -0.05), xycoords='axes fraction', xytext=(0, -0.05),
+                 arrowprops=dict(arrowstyle="-|>", color='k', linewidth=4))
+    plt.tight_layout()
+    plt.savefig("../../figures/varying_continuous.png", bbox_inches='tight')
+    plt.clf()
+    plt.close()
+    """
+
+
+def load_models(cat_dim=(1,), cont_dim=(16,), noise_dim=(0,), img_dim=(64,64,1), epoch=None):
+        # Load generator model
+    gen = models.generator_upsampling(cat_dim, cont_dim, noise_dim, img_dim, 0)
+    disc = models.DCGAN_discriminator(cat_dim, cont_dim, img_dim, 0)
+    gan = models.DCGAN(gen, disc, cat_dim, cont_dim, noise_dim)
+
+    opt_dcgan = Adam(lr=2e-4)
+    opt_discriminator = Adam(lr=1e-4)
+
+    gen.compile(loss='mse', optimizer=opt_discriminator)
+    list_losses = ['binary_crossentropy', 'binary_crossentropy', 'mse']
+    list_weights = [1, 1, 1]    
+    disc.trainable = True
+    disc.compile(loss=list_losses, loss_weights=list_weights, optimizer=opt_discriminator)
+    gan.compile(loss=list_losses, loss_weights=list_weights, optimizer=opt_dcgan)
+
+    if epoch is not None:
+        model_name = "InfoGAN"
+        gen.load_weights("../../models/%s/gen_weights_epoch%s.h5" %
+            (model_name, epoch))
+        disc.load_weights("../../models/%s/disc_weights_epoch%s.h5" %
+            (model_name, epoch))
+        gan.load_weights("../../models/%s/DCGAN_weights_epoch%s.h5" %
+            (model_name, epoch))
+
+    return (gen, disc, gan)
+
