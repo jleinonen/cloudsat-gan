@@ -77,6 +77,26 @@ def save_model_state(gen, disc, gan, model_name, epoch):
     data_utils.save_opt_weights(gan, paths["opt_gan_weights_path"])
 
 
+def create_models(scene_size, modis_var_dim, noise_dim, lr_disc, lr_gan):
+    # Create optimizers
+    opt_disc = Adam(lr_disc, 0.5)
+    opt_gan = Adam(lr_gan, 0.5)
+
+    # Create models
+    gen = models.cs_generator(scene_size, modis_var_dim, noise_dim)
+    disc = models.discriminator(scene_size, modis_var_dim)
+
+    # Compile models
+    disc.trainable = False
+    gan = models.cs_modis_cgan(gen, disc, scene_size, modis_var_dim, 
+        noise_dim)
+    gan.compile(loss='binary_crossentropy', optimizer=opt_gan)
+    disc.trainable = True    
+    disc.compile(loss='binary_crossentropy', optimizer=opt_disc)
+
+    return (gen, disc, gan, opt_disc, opt_gan)
+
+
 def train_cs_modis_cgan(
         scenes_fn=None,
         noise_dim=64,
@@ -105,33 +125,9 @@ def train_cs_modis_cgan(
     scene_size = cs_scenes.shape[1]
     modis_var_dim = modis_vars.shape[-1]
 
-    print("Creating models...")
-    # Create optimizers
-    opt_disc = Adam(lr_disc, 0.5)
-    opt_gan = Adam(lr_gan, 0.5)
-
-    # Create models
-    gen = models.cs_generator(scene_size, modis_var_dim, noise_dim)#, cont_dim)
-    disc = models.discriminator(scene_size, modis_var_dim)#, cont_dim, mode='disc')
-    #aux = models.discriminator(scene_size, cont_dim, mode='aux')
-    #modis_pred = models.cs_modis_predictor(scene_size, modis_var_dim)
-    #modis_pred.load_weights(modis_pred_weights)
-    #modis_pred.trainable = False
-
-    disc.trainable = False
-    #aux.trainable = False
-
-    gan = models.cs_modis_cgan(gen, disc, 
-        #aux, modis_pred, 
-        scene_size, modis_var_dim, noise_dim)#, cont_dim)
-
-    gan_losses = ['binary_crossentropy']
-    gan.compile(loss=gan_losses, optimizer=opt_gan)
-
-    disc.trainable = True
-    #aux.trainable = True
-    disc.compile(loss='binary_crossentropy', optimizer=opt_disc)
-    #aux.compile(loss='mse', optimizer=opt)
+    print("Creating models...")    
+    (gen, disc, gan, opt_disc, opt_gan) = create_models(
+        scene_size, modis_var_dim, noise_dim, lr_disc, lr_gan)
 
     if epoch > 1:
         print("Loading weights...")
@@ -193,8 +189,8 @@ def train_cs_modis_cgan(
                 modis_vars_bs = np.zeros_like(modis_vars_b)
                 modis_mask_bs = np.zeros_like(modis_mask_b)
                 for i in range(1,batch_size):
-                    modis_vars_bs[i,...] = modis_vars_bs[0,...]
-                    modis_mask_bs[i,...] = modis_mask_bs[0,...]
+                    modis_vars_bs[i,...] = modis_vars_b[0,...]
+                    modis_mask_bs[i,...] = modis_mask_b[0,...]
                 scene_gen_s = gen.predict([noise, modis_vars_bs, modis_mask_bs])
 
                 np.savez_compressed(dir_path+"/../data/gen_scene.npz",
@@ -218,28 +214,37 @@ def train_cs_modis_cgan(
     return (gan, gen, disc)
 
 
-def train_cs_modis_cgan_full(scenes_fn):
+def train_cs_modis_cgan_full(scenes_fn, run_name=None):
     print("Loading data...")
-    (cs_scenes, modis_vars, modis_mask) = \
-        data_utils.load_cloudsat_scenes(scenes_fn)
+    scenes = data_utils.load_cloudsat_scenes(scenes_fn,
+        shuffle_seed=214101)
+    (cs_scenes, modis_vars, modis_mask) = scenes["train"]
+    
+    model_name = "cs_modis_cgan"
+    if run_name:
+        model_name += "-"+run_name
+
+    paths = model_state_paths(model_name, 1)
+    model_dir = os.path.dirname(paths["gen_weights_path"])
+    try:
+        os.mkdir(model_dir)
+    except OSError:
+        pass
+
     train_kwargs = {
+        "model_name": model_name,
         "cs_scenes": cs_scenes,
         "modis_vars": modis_vars,
         "modis_mask": modis_mask,
         "noise_dim": 64,
-        "cont_dim": 4,
-        "modis_pred_weights": dir_path + \
-            "/../../models/cs_modis_pred/cs_modis_pred_weights.h5",
         "save_every": 1
     }
 
-    train_cs_modis_gan(num_epochs=5, epoch=1, batch_size=32,
+    train_cs_modis_cgan(num_epochs=5, epoch=1, batch_size=32,
         **train_kwargs)
-    train_cs_modis_gan(num_epochs=5, epoch=6, batch_size=64,
+    train_cs_modis_cgan(num_epochs=10, epoch=6, batch_size=64,
         **train_kwargs)
-    train_cs_modis_gan(num_epochs=10, epoch=11, batch_size=128,
+    train_cs_modis_cgan(num_epochs=10, epoch=11, batch_size=128,
         **train_kwargs)
-    train_cs_modis_gan(num_epochs=20, epoch=21, batch_size=256,
-        **train_kwargs)
-
-
+    #train_cs_modis_cgan(num_epochs=20, epoch=21, batch_size=256,
+    #    **train_kwargs)

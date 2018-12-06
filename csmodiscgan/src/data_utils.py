@@ -5,7 +5,9 @@ import keras.backend as K
 import netCDF4
 
 
-def load_cloudsat_scenes(fn, n=None, right_handed=False):
+def load_cloudsat_scenes(fn, n=None, right_handed=False, frac_validate=0.1,
+    shuffle=True, shuffle_seed=None):
+
     with netCDF4.Dataset(fn, 'r') as ds:
         if n is None:
             n = ds["scenes"].shape[0]
@@ -26,15 +28,56 @@ def load_cloudsat_scenes(fn, n=None, right_handed=False):
             dtype=np.float32)
         modis_mask[:,:,0] = ds["modis_mask"][:n,:]
 
-    ind = np.arange(cs_scenes.shape[0])
-    np.random.shuffle(ind)
-    cs_scenes = cs_scenes[ind,...]
-    modis_vars = modis_vars[ind,...]
-    modis_mask = modis_mask[ind,...]
+    num_scenes = cs_scenes.shape[0]
+    if shuffle:
+        prng = np.random.RandomState(shuffle_seed)
+        ind = np.arange(num_scenes)
+        prng.shuffle(ind)
+        cs_scenes = cs_scenes[ind,...]
+        modis_vars = modis_vars[ind,...]
+        modis_mask = modis_mask[ind,...]
 
     gc.collect()
 
-    return (cs_scenes, modis_vars, modis_mask)
+    num_train = int(round(num_scenes*(1.0-frac_validate)))
+
+    scenes = {
+        "train": (
+            cs_scenes[:num_train,...], 
+            modis_vars[:num_train,...], 
+            modis_mask[:num_train,...]
+        ),
+        "validate": (
+            cs_scenes[num_train:,...], 
+            modis_vars[num_train:,...], 
+            modis_mask[num_train:,...]
+        )
+    }
+
+    return scenes
+
+
+def decode_modis_vars(modis_vars, modis_mask):
+    tau_c_scaled = modis_vars[:,:,0]
+    p_top_scaled = modis_vars[:,:,1]
+    r_e_scaled = modis_vars[:,:,2]
+    twp_scaled = modis_vars[:,:,3]
+
+    decoded_vars = {}
+    decoded_vars["tau_c"] = np.exp((1.13*tau_c_scaled+2.20))    
+    decoded_vars["p_top"] = 265.0*p_top_scaled+532.0    
+    decoded_vars["r_e"] = np.exp((0.542*r_e_scaled+3.06))
+    decoded_vars["twp"] = np.exp((1.11*twp_scaled+0.184))
+    for var in decoded_vars:
+        decoded_vars[var][~modis_mask[:,:,0].astype(bool)] = np.nan
+
+    return decoded_vars
+
+
+def rescale_scene(scene, Z_range=(-35,20), missing_max=-30):
+    sc = Z_range[0] + (scene+1)/2.0 * (Z_range[1]-Z_range[0])
+    sc[sc <= missing_max] = np.nan
+    return sc
 
 
 def gen_batch(cs_scenes, modis_vars, modis_mask, batch_size):
@@ -103,9 +146,7 @@ def get_gan_batch(batch_size, noise_dim,
     noise_scale=1.0, max_smoothing=0.1, num_disc=1):
 
     noise = sample_noise(noise_scale, batch_size, noise_dim)
-    #cont = sample_noise(noise_scale, batch_size, cont_dim)
     X_gan = noise
-    #X_gan = (noise, cont)
     y_gan_disc = max_smoothing*np.random.rand(batch_size, num_disc)
 
     return (X_gan, y_gan_disc)

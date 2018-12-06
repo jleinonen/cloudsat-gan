@@ -132,45 +132,30 @@ def discriminator(scene_size, modis_var_dim): #, cont_dim):
 
     x = Conv2D(64, (3, 3), strides=(2, 2), padding="same")(full_input)
     x = LeakyReLU(0.2)(x)
+    x = BatchRenormalization(momentum=0.8)(x)
     x = Dropout(0.25)(x)
 
     x = Conv2D(128, (3, 3), strides=(2, 2), padding="same")(x)    
     x = LeakyReLU(0.2)(x)
-    #x = BatchNormalization(momentum=0.8)(x)
+    x = BatchRenormalization(momentum=0.8)(x)
     x = Dropout(0.25)(x)
 
     x = Conv2D(256, (3, 3), strides=(2, 2), padding="same")(x)    
     x = LeakyReLU(0.2)(x)
-    #x = BatchNormalization(momentum=0.8)(x)
+    x = BatchRenormalization(momentum=0.8)(x)
     x = Dropout(0.25)(x)
 
     x = Conv2D(256, (3, 3), strides=(2, 2), padding="same")(x)
     x = LeakyReLU(0.2)(x) 
-    #x = BatchNormalization(momentum=0.8)(x)
+    x = BatchRenormalization(momentum=0.8)(x)
     x = Dropout(0.25)(x)
 
     x = Flatten()(x)
 
-    #x = Dense(1024)(x)    
-    #x = LeakyReLU(0.2)(x)
-    #x = BatchNormalization(momentum=0.8)(x)
-
-    #if mode=="disc":
-        # Create discriminator model
     x_disc = Dense(1, activation='sigmoid', name="disc_out")(x)
     model = Model(inputs=[disc_input, modis_var_input, modis_mask_input], 
         outputs=x_disc,
         name="disc")
-    """
-    elif mode=="aux":
-        x_Q = Dense(128)(x)        
-        x_Q = LeakyReLU(0.2)(x_Q)
-        #x_Q = BatchNormalization(momentum=0.8)(x_Q)
-        #x_Q_Y = Dense(cat_dim[0], activation='softmax', name="Q_cat_out")(x_Q)
-        x_Q_C = Dense(cont_dim, activation='linear', name="aux_out")(x_Q)
-        model = Model(inputs=disc_input, outputs=x_Q_C,
-            name="aux")
-    """
 
     return model
 

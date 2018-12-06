@@ -40,54 +40,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    assert args.mode in ["train", "eval"]
-    assert args.dset in ["mnist", "celebA"]
-
-    # Set the backend by modifying the env variable
-    if args.backend == "theano":
-        os.environ["KERAS_BACKEND"] = "theano"
-    elif args.backend == "tensorflow":
-        os.environ["KERAS_BACKEND"] = "tensorflow"
-
-    # Import the backend
-    import keras.backend as K
-
-    # manually set dim ordering otherwise it is not changed
-    if args.backend == "theano":
-        image_data_format = "channels_first"
-        K.set_image_data_format(image_data_format)
-    elif args.backend == "tensorflow":
-        image_data_format = "channels_last"
-        K.set_image_data_format(image_data_format)
-
-    import train
-    import eval
-
-    # Set default params
-    d_params = {"dset": args.dset,
-                "generator": args.generator,
-                "batch_size": args.batch_size,
-                "n_batch_per_epoch": args.n_batch_per_epoch,
-                "scenes_fn": args.scenes_file,
-                "nb_epoch": args.nb_epoch,
-                "model_name": "InfoGAN",
-                "epoch": args.epoch,
-                "nb_classes": args.nb_classes,
-                "do_plot": args.do_plot,
-                "image_data_format": image_data_format,
-                "bn_mode": args.bn_mode,
-                "img_dim": args.img_dim,
-                "noise_dim": args.noise_dim,
-                "cat_dim": args.cat_dim,
-                "cont_dim": args.cont_dim,
-                "noise_scale": args.noise_scale,
-                "lr_factor": args.lr_factor,
-                }
-
-    if args.mode == "train":
-        # Launch training
-        launch_training(**d_params)
-
-    if args.mode == "eval":
-        # Launch eval
-        launch_eval(**d_params)
+    scenes_file = args.scenes_file
+    
