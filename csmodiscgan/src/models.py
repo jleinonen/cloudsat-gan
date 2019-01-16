@@ -1,50 +1,10 @@
-from keras import regularizers
 from keras.models import Model
-from keras.layers.core import Flatten, Dense, Dropout, Activation, Reshape, Lambda
-from keras.layers.convolutional import Conv2D, UpSampling2D, Conv3D, UpSampling3D
-from keras.layers import Input, Concatenate, average
-from keras.layers.advanced_activations import LeakyReLU
-from keras.layers.normalization import BatchNormalization
-from keras_contrib.layers.normalization import InstanceNormalization
-from normgan import BatchRenormalization
-import keras.backend as K
+from keras.layers import Activation, Dense, Flatten, Input, LeakyReLU, Reshape
+from keras.layers import Conv2D, UpSampling2D
+from keras.layers import BatchNormalization
 
-"""
-def cs_modis_predictor(scene_size=64, modis_var_dim=4):
-    p_input = Input(shape=(scene_size,scene_size,1))
 
-    x = Conv2D(64, (3, 5), strides=(2, 1), padding="same")(p_input)
-    x = BatchNormalization()(x)
-    x = LeakyReLU(0.2)(x)
-
-    x = Conv2D(64, (3, 3), strides=(2, 1), padding="same")(x)
-    x = BatchNormalization()(x)
-    x = LeakyReLU(0.2)(x)
-
-    x = Conv2D(64, (5, 1), strides=(4, 1), padding="same")(x)
-    x = BatchNormalization()(x)
-    x = LeakyReLU(0.2)(x)
-
-    x = Conv2D(64, (5, 1), strides=(4, 1), padding="same")(x)
-    x = BatchNormalization()(x)
-    x = LeakyReLU(0.2)(x)
-
-    x_f = Conv2D(128, (1, 1), padding="same")(x)
-    x_f = BatchNormalization()(x_f)
-    x_f = LeakyReLU(0.2)(x_f)
-
-    y_m = Conv2D(1, (1, 1), padding="same", activation="sigmoid")(x_f)
-    y_m = Reshape((scene_size, 1), name="modis_mask")(y_m)
-
-    y_c = Conv2D(modis_var_dim, (1, 1), padding="same")(x_f)
-    y_c = Reshape((scene_size, modis_var_dim), name="modis_vars")(y_c)
-
-    model = Model(inputs=p_input, outputs=[y_c, y_m])
-
-    return model
-"""
-
-def cs_generator(scene_size, modis_var_dim, noise_dim): #, cont_dim):
+def cs_generator(scene_size, modis_var_dim, noise_dim):
     f = 256
     start_dim = 8
     reshape_shape = (start_dim, start_dim, f)
@@ -52,7 +12,6 @@ def cs_generator(scene_size, modis_var_dim, noise_dim): #, cont_dim):
     modis_var_input = Input(shape=(scene_size,modis_var_dim), name="modis_var_in")
     modis_mask_input = Input(shape=(scene_size,1), name="modis_mask_in")
     noise_input = Input(shape=(noise_dim,), name="noise_in")
-    #cont_input = Input(shape=(cont_dim,), name="cont_input")
 
     inputs = [noise_input, modis_var_input, modis_mask_input]
     inputs_flat = [inputs[0], Flatten()(inputs[1]), Flatten()(inputs[2])]
@@ -60,24 +19,24 @@ def cs_generator(scene_size, modis_var_dim, noise_dim): #, cont_dim):
 
     x = Dense(f * start_dim * start_dim)(gen_input)
     x = Activation("relu")(x)
-    x = BatchRenormalization(momentum=0.8)(x)
+    x = BatchNormalization(momentum=0.8)(x)
 
     x = Reshape(reshape_shape)(x)
 
     x = UpSampling2D(size=(2, 2))(x)
-    x = Conv2D(256, (3, 3), padding="same")(x)    
+    x = Conv2D(256, (3, 3), padding="same")(x)
     x = Activation("relu")(x)
-    x = BatchRenormalization(momentum=0.8)(x)
+    x = BatchNormalization(momentum=0.8)(x)
 
     x = UpSampling2D(size=(2, 2))(x)
     x = Conv2D(128, (3, 3), padding="same")(x)    
     x = Activation("relu")(x)
-    x = BatchRenormalization(momentum=0.8)(x)
+    x = BatchNormalization(momentum=0.8)(x)
 
     x = UpSampling2D(size=(2, 2))(x)
     x = Conv2D(64, (3, 3), padding="same")(x)    
     x = Activation("relu")(x)
-    x = BatchRenormalization(momentum=0.8)(x)
+    x = BatchNormalization(momentum=0.8)(x)
 
     x = Conv2D(1, (3, 3), padding="same", 
         activation='tanh')(x)
@@ -99,28 +58,27 @@ def modis_upsampler(modis_var_input, modis_mask_input,
     x = UpSampling2D(size=(4,1))(x)
     x = Conv2D(256, (5, 3), padding="same")(x)
     x = LeakyReLU(0.2)(x)
-    x = BatchRenormalization(momentum=0.8)(x)
+    x = BatchNormalization(momentum=0.8)(x)
 
     x = UpSampling2D(size=(4,1))(x)
     x = Conv2D(128, (5, 3), padding="same")(x)
     x = LeakyReLU(0.2)(x)
-    x = BatchRenormalization(momentum=0.8)(x)
+    x = BatchNormalization(momentum=0.8)(x)
 
     x = UpSampling2D(size=(2,1))(x)
     x = Conv2D(64, (3, 3), padding="same")(x)
     x = LeakyReLU(0.2)(x)
-    x = BatchRenormalization(momentum=0.8)(x)
+    x = BatchNormalization(momentum=0.8)(x)
 
     x = UpSampling2D(size=(2,1))(x)
     x = Conv2D(upsampled_channels, (3, 3), padding="same")(x)
     x = LeakyReLU(0.2)(x)
-    x = BatchRenormalization(momentum=0.8)(x)
+    x = BatchNormalization(momentum=0.8)(x)
 
     return x
 
 
-#def discriminator(scene_size, cont_dim, mode="disc"):
-def discriminator(scene_size, modis_var_dim): #, cont_dim):
+def discriminator(scene_size, modis_var_dim):
     disc_input = Input(shape=(scene_size,scene_size,1), name="disc_in")
     modis_var_input = Input(shape=(scene_size,modis_var_dim), name="modis_var_in")
     modis_mask_input = Input(shape=(scene_size,1), name="modis_mask_in")
@@ -132,23 +90,15 @@ def discriminator(scene_size, modis_var_dim): #, cont_dim):
 
     x = Conv2D(64, (3, 3), strides=(2, 2), padding="same")(full_input)
     x = LeakyReLU(0.2)(x)
-    x = BatchRenormalization(momentum=0.8)(x)
-    x = Dropout(0.25)(x)
 
     x = Conv2D(128, (3, 3), strides=(2, 2), padding="same")(x)    
     x = LeakyReLU(0.2)(x)
-    x = BatchRenormalization(momentum=0.8)(x)
-    x = Dropout(0.25)(x)
 
     x = Conv2D(256, (3, 3), strides=(2, 2), padding="same")(x)    
     x = LeakyReLU(0.2)(x)
-    x = BatchRenormalization(momentum=0.8)(x)
-    x = Dropout(0.25)(x)
 
     x = Conv2D(256, (3, 3), strides=(2, 2), padding="same")(x)
     x = LeakyReLU(0.2)(x) 
-    x = BatchRenormalization(momentum=0.8)(x)
-    x = Dropout(0.25)(x)
 
     x = Flatten()(x)
 
@@ -160,27 +110,18 @@ def discriminator(scene_size, modis_var_dim): #, cont_dim):
     return model
 
 
-def cs_modis_cgan(gen, disc, 
-    #aux, modis_pred, 
-    scene_size, modis_var_dim, noise_dim): #, cont_dim):
-
+def cs_modis_cgan(gen, disc, scene_size, modis_var_dim, noise_dim): 
     modis_var_input = Input(shape=(scene_size,modis_var_dim), 
         name="modis_var_in")
     modis_mask_input = Input(shape=(scene_size,1), name="modis_mask_in")
     noise_input = Input(shape=(noise_dim,), name="noise_in")
-    #cont_input = Input(shape=(cont_dim,), name="cont_input")
-    inputs = [noise_input, modis_var_input, modis_mask_input]#, cont_input]
+    inputs = [noise_input, modis_var_input, modis_mask_input]
 
     generated_image = gen(inputs)
     disc_inputs = [generated_image, modis_var_input, modis_mask_input]
     x_disc = disc(disc_inputs)
-    #x_aux = aux(generated_image)
-    #(modis_var_pred, modis_mask_pred) = modis_pred(generated_image)
 
-    gan = Model(inputs=inputs,
-        outputs=x_disc,
-        #outputs=[x_disc, modis_var_pred, modis_mask_pred],
-        name="cs_modis_cgan")
+    gan = Model(inputs=inputs, outputs=x_disc, name="cs_modis_cgan")
 
     return gan
 

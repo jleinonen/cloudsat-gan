@@ -3,42 +3,14 @@ import os
 import time
 
 from keras.utils import generic_utils
-from keras.optimizers import Adam, SGD
+from keras.optimizers import Adam
 import numpy as np
 import models
 import data_utils
 
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-"""
-def train_cs_modis_predictor(**kwargs):
-    scenes_fn = kwargs["scenes_fn"]
-    weights_fn = kwargs["weights_fn"]
-
-    print("Loading data...")
-    (cs_scenes, modis_vars, modis_mask) = \
-        data_utils.load_cloudsat_scenes(scenes_fn)
-
-    scene_size = cs_scenes.shape[1]
-    modis_var_dim = modis_vars.shape[-1]
-
-    print("Creating model...")
-    model = models.cs_modis_predictor()
-    model.compile(loss=["mean_squared_error", "binary_crossentropy"], 
-        optimizer="adam")
-
-    print("Starting training...")
-    for batch_size in [32, 64, 128, 256]:
-        model.fit(cs_scenes, [modis_vars, modis_mask], epochs=10, 
-            validation_split=0.1, batch_size=batch_size)
-
-    print("Saving weights...")
-    model.save_weights(weights_fn, overwrite=True)
-
-    gc.collect()
-
-    return model
-"""
 
 def model_state_paths(model_name, epoch, model_dir=None):
     if model_dir is None:
@@ -100,8 +72,6 @@ def create_models(scene_size, modis_var_dim, noise_dim, lr_disc, lr_gan):
 def train_cs_modis_cgan(
         scenes_fn=None,
         noise_dim=64,
-        #cont_dim=4,
-        #modis_pred_weights=None,
         epoch=1,
         model_name="cs_modis_cgan",
         num_epochs=1,
@@ -168,23 +138,15 @@ def train_cs_modis_cgan(
 
             # Freeze the discriminator while training the generator
             disc.trainable = False
-            #aux.trainable = False
             gen_loss = gan.train_on_batch([noise, modis_vars_b, modis_mask_b],
                 [y_gan_disc])
             disc.trainable = True
-            #aux.trainable = True
 
             batch_counter += 1
             progbar.add(batch_size, values=[("D loss", disc_loss),
                 ("G loss", gen_loss)])
-                #("D aux", aux_loss),
-                #("G tot", gen_loss[0]), ("G disc", gen_loss[1]),
-                #("G aux", gen_loss[2]),
-                #("G vars", gen_loss[3]), ("G mask", gen_loss[4])])
 
             if batch_counter % 50 == 0:
-                #scene_gen = gen.predict([modis_vars_3d_b, modis_mask_3d_b,
-                #    noise, cont])
                 scene_gen = gen.predict([noise, modis_vars_b, modis_mask_b])
                 modis_vars_bs = np.zeros_like(modis_vars_b)
                 modis_mask_bs = np.zeros_like(modis_mask_b)
@@ -197,10 +159,6 @@ def train_cs_modis_cgan(
                     scene=scene_gen, real_scene=cs_scenes_b,
                     scene_single=scene_gen_s,
                     modis_vars=modis_vars_b, modis_mask=modis_mask_b)
-
-        # Save images for visualization
-        # data_utils.plot_generated_batch(X_real_batch, gen,
-        #    batch_size, cat_dim, cont_dim, noise_dim, image_data_format)
 
         gc.collect()
 
@@ -244,7 +202,7 @@ def train_cs_modis_cgan_full(scenes_fn, run_name=None):
         **train_kwargs)
     train_cs_modis_cgan(num_epochs=10, epoch=6, batch_size=64,
         **train_kwargs)
-    train_cs_modis_cgan(num_epochs=10, epoch=11, batch_size=128,
+    train_cs_modis_cgan(num_epochs=10, epoch=16, batch_size=128,
         **train_kwargs)
-    #train_cs_modis_cgan(num_epochs=20, epoch=21, batch_size=256,
-    #    **train_kwargs)
+    train_cs_modis_cgan(num_epochs=20, epoch=26, batch_size=256,
+        **train_kwargs)

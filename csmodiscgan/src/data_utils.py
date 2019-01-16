@@ -116,8 +116,7 @@ def sample_noise(noise_scale, batch_size, noise_dim):
 
 
 def get_disc_batch(cs_scenes_b, modis_vars_b, modis_mask_b, gen, fake, 
-    batch_size, noise_dim, 
-    #cont_dim, 
+    batch_size, noise_dim,  
     noise_scale=1.0, max_smoothing=0.1):
 
     # Create X_disc: alternatively only generated or real images
@@ -142,7 +141,6 @@ def get_disc_batch(cs_scenes_b, modis_vars_b, modis_mask_b, gen, fake,
 
 
 def get_gan_batch(batch_size, noise_dim, 
-    #cont_dim, 
     noise_scale=1.0, max_smoothing=0.1, num_disc=1):
 
     noise = sample_noise(noise_scale, batch_size, noise_dim)
