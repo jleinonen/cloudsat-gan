@@ -1,5 +1,6 @@
 from keras.models import Model
-from keras.layers import Activation, Dense, Flatten, Input, LeakyReLU, Reshape
+from keras.layers import Activation, Concatenate, Dense, Flatten, Input
+from keras.layers import LeakyReLU, Reshape
 from keras.layers import Conv2D, UpSampling2D
 from keras.layers import BatchNormalization
 

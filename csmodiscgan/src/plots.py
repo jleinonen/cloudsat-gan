@@ -89,7 +89,7 @@ def generate_scenes(gen, modis_vars, modis_mask, noise_dim=64, rng_seed=None,
 
 def plot_samples_cmp(gen, scene_real, modis_vars, modis_mask, noise_dim=64,
     num_gen=4, rng_seeds=[20183,417662,783924], 
-    pix_extent=(0.24,1.09)):
+    pix_extent=(0.24,1.09), first_column_num=1):
 
     scene_gen = [None]*num_gen
     for k in range(num_gen):
@@ -118,6 +118,7 @@ def plot_samples_cmp(gen, scene_real, modis_vars, modis_mask, noise_dim=64,
 
     for i in range(num_samples):
         ax_tau = plt.subplot(gs[0,i])
+        ax_tau.set_title(str(i+first_column_num))
         ax_p = plot_column(ax_tau, tau_c[i,:], p_top[i,:], 
             pix_extent, scene_size, range1=tau_c_range, 
             range2=p_top_range, inv2=True, log1=True, log2=True,
@@ -191,10 +192,12 @@ def plot_samples_cmp_all(gen, scene_real, modis_vars, modis_mask):
     samples = [samples_sel_1, samples_sel_2] + samples_rnd
     plot_names = ["real_gen_cmp_sel-1", "real_gen_cmp_sel-2"] + \
         ["real_gen_cmp_rnd-{}".format(i) for i in range(len(samples_rnd))]
+    first_column_num = [1]*len(plot_names)
+    first_column_num[1] = 9
 
-    for (s, fn) in zip(samples, plot_names):
+    for (s, fn, fcn) in zip(samples, plot_names, first_column_num):
         plot_samples_cmp(gen, scene_real[s,...], 
-            modis_vars[s,...], modis_mask[s,...])
+            modis_vars[s,...], modis_mask[s,...], first_column_num=fcn)
         plt.savefig("../figures/{}.pdf".format(fn), bbox_inches='tight')
         plt.close()
 
@@ -202,7 +205,7 @@ def plot_samples_cmp_all(gen, scene_real, modis_vars, modis_mask):
         ["gen_dist-{}.pdf".format(i) for i in range(len(samples_sel_2))]
     for (s,fn) in zip(samples_sel_2, dist_plot_names):
         plot_distribution(gen, modis_vars, modis_mask, s)
-        plt.savefig("../figures/{}.pdf".format(fn), bbox_inches='tight')
+        plt.savefig("../figures/{}".format(fn), bbox_inches='tight')
         plt.close()
 
 

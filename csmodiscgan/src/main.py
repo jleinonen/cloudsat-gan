@@ -10,11 +10,12 @@ if __name__ == "__main__":
         help="Suffix to use for this training run")
     
     args = parser.parse_args()
-    scenes_file = args.scenes_file
+    mode = args.mode
+    scenes_fn = args.scenes_file
 
     if mode == "train":
         import train
         train.train_cs_modis_cgan_full(scenes_fn)
     elif mode == "plot":
         import plots
-        
+        plots.plot_all(scenes_fn)
