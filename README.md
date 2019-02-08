@@ -9,14 +9,14 @@ To run the code, you'll need NumPy, matplotlib, NetCDF4 and Keras with Tensorflo
 
 To reproduce the results with the pre-trained model:
 ```bash
-python main.py plot
+python main.py plot --scenes_file=<file>
 ```
-This will output plots into the `figures` directory.
+where `<file>` is a path to the file containing the dataset. This will output plots into the `figures` directory.
 
 To run the training:
 ```bash
 python main.py train
 ```
-This will output saved model weights into the `models` directory.
+This will output saved model weights into the `models` directory. Note that, since the initial weights are randomizes, the results will not be exactly equal to those reported in the paper.
 
 If you find any problems with the code, please submit an [issue](/../../issues/). For other questions, email jussi.s.leinonen@jpl.caltech.edu.
