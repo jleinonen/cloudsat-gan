@@ -15,7 +15,7 @@ where `<file>` is a path to the file containing the dataset. This will output pl
 
 To run the training:
 ```bash
-python main.py train
+python main.py train --scenes_file=<file>
 ```
 This will output saved model weights into the `models` directory. Note that, since the initial weights are randomizes, the results will not be exactly equal to those reported in the paper.
 
