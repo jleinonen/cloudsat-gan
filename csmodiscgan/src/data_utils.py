@@ -11,7 +11,7 @@ def load_cloudsat_scenes(fn, n=None, right_handed=False, frac_validate=0.1,
     with netCDF4.Dataset(fn, 'r') as ds:
         if n is None:
             n = ds["scenes"].shape[0]
-        cs_scenes = ds["scenes"][:n,:,:].data
+        cs_scenes = np.array(ds["scenes"][:n,:,:])
         cs_scenes = cs_scenes.reshape(cs_scenes.shape+(1,))
         if right_handed:
             cs_scenes = np.rot90(cs_scenes, axes=(2,1))
