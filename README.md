@@ -21,4 +21,4 @@ python main.py train --scenes_file=<file>
 ```
 This will output saved model weights into the `models` directory. Note that, since the initial weights are randomizes, the results will not be exactly equal to those reported in the paper.
 
-If you find any problems with the code, please submit an [issue](/../../issues/). For other questions, email jussi.s.leinonen@jpl.caltech.edu.
+If you find any problems with the code, please submit an [issue](/../../issues/). For other questions, email jussi.leinonen@epfl.ch.
